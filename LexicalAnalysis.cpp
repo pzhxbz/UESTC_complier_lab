@@ -38,8 +38,8 @@ class Analysis
         ASSIGN = 20,
         LBRAC = 21,
         RBRAC = 22,
-        SEM = 23,
-        BUFLEN = 50
+        SEM = 23
+        //BUFLEN = 50
     };
     enum ErrorTypr
     {
@@ -67,20 +67,20 @@ class Analysis
         string tmp_sym = "";
         while (p != this->source.end())
         {
-            if(*p == '\n')
-            {
-                line++;
-                if(tmp_sym.length()==0)
-                {
-                    p++;
-                    continue;
-                }
-                if(IsLetterAndNumber(tmp_sym.back()))
-                    goto ERROR_SY;
-                else
-                    goto ERROR_OP;
-            }
-            if(*p == ' ')
+            // if(*p == '\n')
+            // {
+            //     // line++;
+            //     // if(tmp_sym.length()==0)
+            //     // {
+            //     //     p++;
+            //     //     continue;
+            //     // }
+            //     if(IsLetterAndNumber(tmp_sym.back()))
+            //         goto ERROR_SY;
+            //     else
+            //         goto ERROR_OP;
+            // }
+            if(*p == ' ' || *p == '\n')
             {
                 if(tmp_sym.length()==0)
                 {
@@ -131,10 +131,11 @@ class Analysis
                         }
                     }
                     tmp_sym.clear();
-                    if(*p!=' '&&*p!='\n')
-                        tmp_sym += *p;
-                    p++;
-                    continue;
+                    goto END;
+                    // if(*p!=' '&&*p!='\n')
+                    //     tmp_sym += *p;
+                    // p++;
+                    // continue;
                 }
                 if(IsOperator(*p) && (!IsOperator(tmp_sym.back())))
                 {
@@ -158,14 +159,21 @@ class Analysis
                         }
                     }
                     tmp_sym.clear();
-                    if(*p!=' '&&*p!='\n')
-                        tmp_sym += *p;
-                    p++;
-                    continue;
+                    goto END;
+                    // if(*p!=' '&&*p!='\n')
+                    //     tmp_sym += *p;
+                    // p++;
+                    // continue;
                 }  
             }
+            END:
             if(*p!=' '&& *p!='\n')
                 tmp_sym += *p;
+            else if(*p == '\n')
+            {
+                line++;
+                WriteFile("NEXTLINE",66);
+            }
             p++;
         }
     }
@@ -284,11 +292,11 @@ class Analysis
     {
         if(type == OPERA_ERROR)
         {
-            error += "LINE:行号"+to_string(line)+"  运算符"+err_sym+"不正确\n";
+            error += "LINE:行号"+to_string(line+1)+"  运算符"+err_sym+"不正确\n";
         }
         if(type == SYM_ERROR)
         {
-            error += "LINE:行号"+to_string(line)+"  标识符"+err_sym+"不正确\n";
+            error += "LINE:行号"+to_string(line+1)+"  标识符"+err_sym+"不正确\n";
         }
     }
 
@@ -317,7 +325,7 @@ class Analysis
         symbol.insert(pair<string, int>("(", 21));
         symbol.insert(pair<string, int>(")", 22));
         symbol.insert(pair<string, int>(";", 23));
-        symbol.insert(pair<string, int>("buflen", 50));
+        symbol.insert(pair<string, int>("NEXTLINE", 50));
     }
 
     map<string, int> symbol;
