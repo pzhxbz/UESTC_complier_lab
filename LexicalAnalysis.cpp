@@ -49,7 +49,7 @@ class Analysis
     Analysis()
     {
         //symbol = new map<string, int>();
-       initTable();
+        initTable();
     }
     Analysis(string source)
     {
@@ -60,76 +60,30 @@ class Analysis
     {
     }
 
-
     void StartAnalysis()
     {
         auto p = this->source.begin();
         string tmp_sym = "";
         while (p != this->source.end())
         {
-            // if(*p == '\n')
-            // {
-            //     // line++;
-            //     // if(tmp_sym.length()==0)
-            //     // {
-            //     //     p++;
-            //     //     continue;
-            //     // }
-            //     if(IsLetterAndNumber(tmp_sym.back()))
-            //         goto ERROR_SY;
-            //     else
-            //         goto ERROR_OP;
-            // }
-            if(*p == ' ' || *p == '\n')
+            if (*p == ' ' || *p == '\n')
             {
-                if(tmp_sym.length()==0)
+                if (tmp_sym.length() == 0)
                 {
                     p++;
                     continue;
                 }
-                if(IsLetterAndNumber(tmp_sym.back()))
+                if (IsLetterAndNumber(tmp_sym.back()))
                     goto ERROR_SY;
                 else
                     goto ERROR_OP;
-              
             }
-            if(tmp_sym.length()!=0)
+            if (tmp_sym.length() != 0)
             {
-                if(IsLetterAndNumber(*p) && (!IsLetterAndNumber(tmp_sym.back())))
+                if (IsLetterAndNumber(*p) && (!IsLetterAndNumber(tmp_sym.back())))
                 {
-                    ERROR_OP:                
-                    if(!MatchSymbol(tmp_sym))
-                    {
-                        for(auto f=tmp_sym.begin();f!=tmp_sym.end();)
-                        {
-                            if(isSingleOpera(*f))
-                            {
-                                string tmp = string("")+*f;
-                                if(!MatchSymbol(tmp))
-                                {
-                                    WriteError(tmp,OPERA_ERROR);
-                                }
-                                f++;
-                            }
-                            else
-                            {
-                                string tmp = string("")+*f;
-                                f++;
-                                if(f == tmp_sym.end())
-                                {
-                                    WriteError(tmp,OPERA_ERROR);
-                                    break;
-                                }
-                                tmp += *f;
-                                if(!MatchSymbol(tmp))
-                                {
-                                    WriteError(tmp,OPERA_ERROR);
-                                }
-                                f++;
-                            }
-
-                        }
-                    }
+                ERROR_OP:
+                    MatchOp(tmp_sym);
                     tmp_sym.clear();
                     goto END;
                     // if(*p!=' '&&*p!='\n')
@@ -137,44 +91,32 @@ class Analysis
                     // p++;
                     // continue;
                 }
-                if(IsOperator(*p) && (!IsOperator(tmp_sym.back())))
+                if (IsOperator(*p) && (!IsOperator(tmp_sym.back())))
                 {
-                    ERROR_SY:
-                    if(!MatchSymbol(tmp_sym))
-                    {
-                        if(IsAllNumber(tmp_sym))
-                        {
-                            WriteFile(tmp_sym,CONSTANT);
-                        }
-                        else
-                        {
-                            if(CheckSym(tmp_sym))
-                            {
-                                WriteFile(tmp_sym,SYMBOL);                            
-                            }
-                            else
-                            {
-                                WriteError(tmp_sym,SYM_ERROR);
-                            }
-                        }
-                    }
+                ERROR_SY:
+                    MatchSym(tmp_sym);
                     tmp_sym.clear();
                     goto END;
-                    // if(*p!=' '&&*p!='\n')
-                    //     tmp_sym += *p;
-                    // p++;
-                    // continue;
-                }  
+                   
+                }
             }
-            END:
-            if(*p!=' '&& *p!='\n')
+        END:
+            if (*p != ' ' && *p != '\n')
                 tmp_sym += *p;
-            else if(*p == '\n')
+            else if (*p == '\n')
             {
                 line++;
-                WriteFile("NEXTLINE",66);
+                WriteFile("NEXTLINE", 66);
             }
             p++;
+        }
+        if (!IsLetterAndNumber(tmp_sym.back()))
+        {
+            MatchOp(tmp_sym);
+        }
+        else
+        {
+            MatchSym(tmp_sym);
         }
     }
 
@@ -196,6 +138,62 @@ class Analysis
     }
 
   private:
+    void MatchOp(string tmp_sym)
+    {
+        if (!MatchSymbol(tmp_sym))
+        {
+            for (auto f = tmp_sym.begin(); f != tmp_sym.end();)
+            {
+                if (isSingleOpera(*f))
+                {
+                    string tmp = string("") + *f;
+                    if (!MatchSymbol(tmp))
+                    {
+                        WriteError(tmp, OPERA_ERROR);
+                    }
+                    f++;
+                }
+                else
+                {
+                    string tmp = string("") + *f;
+                    f++;
+                    if (f == tmp_sym.end())
+                    {
+                        WriteError(tmp, OPERA_ERROR);
+                        break;
+                    }
+                    tmp += *f;
+                    if (!MatchSymbol(tmp))
+                    {
+                        WriteError(tmp, OPERA_ERROR);
+                    }
+                    f++;
+                }
+            }
+        }
+    }
+
+    void MatchSym(string tmp_sym)
+    {
+        if (!MatchSymbol(tmp_sym))
+        {
+            if (IsAllNumber(tmp_sym))
+            {
+                WriteFile(tmp_sym, CONSTANT);
+            }
+            else
+            {
+                if (CheckSym(tmp_sym))
+                {
+                    WriteFile(tmp_sym, SYMBOL);
+                }
+                else
+                {
+                    WriteError(tmp_sym, SYM_ERROR);
+                }
+            }
+        }
+    }
 
     bool IsLetterAndNumber(char a)
     {
@@ -225,10 +223,10 @@ class Analysis
 
     bool IsAllNumber(string a)
     {
-        
-        for(auto p = a.begin();p!=a.end();p++)
+
+        for (auto p = a.begin(); p != a.end(); p++)
         {
-            if(!IsNumber(*p))
+            if (!IsNumber(*p))
             {
                 return false;
             }
@@ -238,11 +236,11 @@ class Analysis
 
     bool CheckSym(string sym)
     {
-        if(sym.length() == 0)
+        if (sym.length() == 0)
         {
             return true;
         }
-        if(IsNumber(sym[0]))
+        if (IsNumber(sym[0]))
         {
             return false;
         }
@@ -251,15 +249,15 @@ class Analysis
 
     bool MatchSymbol(string sym)
     {
-        if(sym.length() == 0)
+        if (sym.length() == 0)
         {
             return false;
         }
         //auto finded = symbol.find(sym);
-        if(symbol.count(sym))
+        if (symbol.count(sym))
         {
             //auto p = *finded;
-            WriteFile(sym,symbol[sym]);
+            WriteFile(sym, symbol[sym]);
             return true;
         }
         return false;
@@ -267,7 +265,7 @@ class Analysis
 
     bool IsOperator(char a)
     {
-        if(operatorTable.find(a) != operatorTable.npos)
+        if (operatorTable.find(a) != operatorTable.npos)
         {
             return true;
         }
@@ -276,27 +274,27 @@ class Analysis
 
     bool isSingleOpera(char a)
     {
-        if(singleOpera.find(a) != singleOpera.npos)
+        if (singleOpera.find(a) != singleOpera.npos)
         {
             return true;
         }
         return false;
     }
 
-    void WriteFile(string sym,int type)
+    void WriteFile(string sym, int type)
     {
         output += sym + '\t' + to_string(type) + '\n';
     }
 
-    void WriteError(string err_sym,int type)
+    void WriteError(string err_sym, int type)
     {
-        if(type == OPERA_ERROR)
+        if (type == OPERA_ERROR)
         {
-            error += "LINE:行号"+to_string(line+1)+"  运算符"+err_sym+"不正确\n";
+            error += "LINE:行号" + to_string(line + 1) + "  运算符" + err_sym + "不正确\n";
         }
-        if(type == SYM_ERROR)
+        if (type == SYM_ERROR)
         {
-            error += "LINE:行号"+to_string(line+1)+"  标识符"+err_sym+"不正确\n";
+            error += "LINE:行号" + to_string(line + 1) + "  标识符" + err_sym + "不正确\n";
         }
     }
 
@@ -313,7 +311,7 @@ class Analysis
         symbol.insert(pair<string, int>("write", 9));
         symbol.insert(pair<string, int>("symbol", 10));
         symbol.insert(pair<string, int>("constant", 11));
-        symbol.insert(pair<string, int>("=", 12));// eq
+        symbol.insert(pair<string, int>("=", 12));  // eq
         symbol.insert(pair<string, int>("<>", 13)); // ne
         symbol.insert(pair<string, int>("<=", 14));
         symbol.insert(pair<string, int>("<", 15));
@@ -336,15 +334,14 @@ class Analysis
     string operatorTable = "%&+=-*<>^\\:();";
     string singleOpera = "*();-";
 
-    int line=0;
-
+    int line = 0;
 };
 
 int main(int argc, char **argv)
 {
     if (argc < 2)
     {
-        cout <<"use LexicalAnalysis <input_file>" << endl;
+        cout << "use LexicalAnalysis <input_file>" << endl;
     }
     ifstream source(argv[1]);
     if (!source.is_open())
