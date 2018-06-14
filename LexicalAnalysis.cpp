@@ -38,7 +38,9 @@ class Analysis
         ASSIGN = 20,
         LBRAC = 21,
         RBRAC = 22,
-        SEM = 23
+        SEM = 23,
+        EOLN = 24,
+        MYEOF = 25
         //BUFLEN = 50
     };
     enum ErrorTypr
@@ -106,7 +108,7 @@ class Analysis
             else if (*p == '\n')
             {
                 line++;
-                WriteFile("NEXTLINE", 66);
+                WriteFile("EOLN", EOLN);
             }
             p++;
         }
@@ -118,6 +120,7 @@ class Analysis
         {
             MatchSym(tmp_sym);
         }
+        WriteFile("EOF", MYEOF);
     }
 
     //template <typename OF>
@@ -323,7 +326,6 @@ class Analysis
         symbol.insert(pair<string, int>("(", 21));
         symbol.insert(pair<string, int>(")", 22));
         symbol.insert(pair<string, int>(";", 23));
-        symbol.insert(pair<string, int>("NEXTLINE", 50));
     }
 
     map<string, int> symbol;
@@ -342,19 +344,20 @@ int main(int argc, char **argv)
     if (argc < 2)
     {
         cout << "use LexicalAnalysis <input_file>" << endl;
+        exit(0);
     }
     ifstream source(argv[1]);
     if (!source.is_open())
     {
         ERROR_MSG("falied to open");
     }
-    ofstream out("out_test.dyd");
+    ofstream out("out.dyd");
     if (!out.is_open())
     {
         ERROR_MSG("failed to open out");
     }
 
-    ofstream error("error_test.err");
+    ofstream error("error.err");
 
     if (!error.is_open())
     {
@@ -370,6 +373,9 @@ int main(int argc, char **argv)
 
     analysiser.DumpOutput(out);
     analysiser.DumpError(error);
+
+    out.close();
+    error.close();
 
     return 0;
 }

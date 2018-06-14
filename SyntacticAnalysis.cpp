@@ -7,6 +7,35 @@
 
 using namespace std;
 
+enum WordType
+{
+    BEGIN = 1,
+    END = 2,
+    INTEGER = 3,
+    IF = 4,
+    THEN = 5,
+    ELSE = 6,
+    FUNCTION = 7,
+    READ = 8,
+    WRITE = 9,
+    SYMBOL = 10,
+    CONSTANT = 11,
+    EQ = 12,
+    NE = 13,
+    LE = 14,
+    LT = 15,
+    BE = 16,
+    BT = 17,
+    SUB = 18,
+    MUL = 19,
+    ASSIGN = 20,
+    LBRAC = 21,
+    RBRAC = 22,
+    SEM = 23,
+    EOLN = 24,
+    MYEOF = 25
+};
+
 inline void ERROR_MSG(const char *msg)
 {
     cerr << msg << endl;
@@ -16,7 +45,7 @@ inline void ERROR_MSG(const char *msg)
 class Variable
 {
   public:
-    Variable(string name, string process, int tpName) : name(name), process(process), tpName(tpName) {}
+    Variable(string name, string process, int tpName, int position) : name(name), process(process), tpName(tpName), position(position) {}
 
     string GetName()
     {
@@ -31,19 +60,43 @@ class Variable
         return process;
     }
 
+    int GetPosition()
+    {
+        return position;
+    }
+
+    string Format(int level, string padding)
+    {
+        string res = padding + "Variable:\n";
+        res += padding + "name : " + name + "\n";
+        res += padding + "proc : " + process + "\n";
+        res += padding + "kind : 0\n";
+        if (tpName == FUNCTION)
+        {
+            res += padding + "type : function\n";
+        }
+        else if (tpName == INTEGER)
+        {
+            res += padding + "type : integer\n";
+        }
+        res += padding + "vlev : " + to_string(level) + "\n";
+        res += padding + "vadr : " + to_string(position) + "\n";
+        return res;
+    }
+
   private:
     string name;
     string process;
     int tpName; // type name
+    int position;
 };
 
 class Process
 {
   public:
-    Process(string name) : processName(name) {}
+    Process(string name, int level) : processName(name), level(level) {}
     Process()
     {
-
     }
     void AddVar(Variable a)
     {
@@ -51,23 +104,49 @@ class Process
     }
     bool HashVar(Variable a)
     {
+        //return true;
         for (auto p = vars.begin(); p != vars.end(); p++)
         {
-            if (p->GetName() == a.GetName() && a.GetType() == p->GetType())
+            if (p->GetName() == a.GetName() ) //&& a.GetType() == p->GetType()
             {
                 return true;
             }
         }
         return false;
     }
+    list<Variable> GetVar()
+    {
+        return this->vars;
+    }
     string GetName()
     {
         return processName;
     }
 
+    int getLevel()
+    {
+        return this->level;
+    }
+
+    string Format(string padding)
+    {
+        if (GetName() == "main")
+        {
+            return "";
+        }
+        string res = padding + "Process";
+        res += padding + "name : " + GetName() + "\n";
+        res += padding + "type : function\n";
+        res += padding + "plev : " + to_string(level) + "\n";
+        res += padding + "fasr : " + to_string(vars.front().GetPosition()) + "\n";
+        res += padding + "ladr : " + to_string(vars.back().GetPosition()) + "\n";
+        return res;
+    }
+
   private:
     list<Variable> vars;
     string processName;
+    int level;
 };
 
 struct SymInfo
@@ -78,34 +157,6 @@ struct SymInfo
 
 class Analysis
 {
-    enum WordType
-    {
-        BEGIN = 1,
-        END = 2,
-        INTEGER = 3,
-        IF = 4,
-        THEN = 5,
-        ELSE = 6,
-        FUNCTION = 7,
-        READ = 8,
-        WRITE = 9,
-        SYMBOL = 10,
-        CONSTANT = 11,
-        EQ = 12,
-        NE = 13,
-        LE = 14,
-        LT = 15,
-        BE = 16,
-        BT = 17,
-        SUB = 18,
-        MUL = 19,
-        ASSIGN = 20,
-        LBRAC = 21,
-        RBRAC = 22,
-        SEM = 23,
-        NEXTLINE = 66
-    };
-
   public:
     Analysis(string data)
     {
@@ -120,22 +171,26 @@ class Analysis
     }
     ~Analysis()
     {
-        for(auto p = allProcess.begin();p!=allProcess.end();p++)
+        for (auto p = allProcess.begin(); p != allProcess.end(); p++)
         {
-            delete(*p);
+            delete (*p);
         }
     }
     void StartAnalysis()
     {
         auto p = sourceList.begin();
-        while (p->type == NEXTLINE)
+        while (p->type == EOLN)
         {
             p++;
             line++;
         }
-        nowProcess =new Process("main");
+        nowProcess = new Process("main", 0);
         allProcess.push_back(nowProcess);
-        S(p);
+        auto next = S(p);
+        if (next->type != MYEOF)
+        {
+            WriteError("can find eof");
+        }
     }
 
     void dumpError(ostream &stream)
@@ -143,11 +198,31 @@ class Analysis
         stream << error << endl;
     }
 
-  private:
-    void addVar(string name, int type)
+    void dumpVar(ostream &stream)
     {
-        Variable tmpVar = Variable(name,nowProcess->GetName(),type);
-        if(nowProcess->HashVar(tmpVar))
+        for (auto p = allProcess.begin(); p != allProcess.end(); p++)
+        {
+            string padding = "";
+            for (int i = 0; i < (*p)->getLevel(); i++)
+            {
+                padding += "\t";
+            }
+            stream << (*p)->Format(padding);
+            auto vars = (*p)->GetVar();
+            for (auto v = vars.begin(); v != vars.end(); v++)
+            {
+                stream << v->Format((*p)->getLevel(), padding);
+            }
+        }
+    }
+
+  private:
+    void addVar(string name, int type, int NotNext = 0)
+    {
+
+        Variable tmpVar = Variable(name, nowProcess->GetName(), type, ++varCount-NotNext);
+        varCount -= NotNext;
+        if (nowProcess->HashVar(tmpVar))
         {
             WriteError("muti define var_name " + name);
         }
@@ -163,8 +238,9 @@ class Analysis
         auto next = _get_next(p);
         if (p->type != BEGIN)
         {
-            WriteError("can't find begin");
-            next = _get_last(p);
+            //_get_last(p);
+            WriteError("can't find begin,find " + p->name);
+            //next =
         }
 
         next = A(next);
@@ -179,7 +255,8 @@ class Analysis
         if (next->type != END)
         {
             WriteError("can't find end");
-            next = _get_last(next);
+            //next = B(_get_next(next));
+            //next = _get_last(next);
         }
         return _get_next(next);
     }
@@ -227,6 +304,22 @@ class Analysis
         {
             return H(_get_next(p));
         }
+        else
+        {
+            auto backup = p;
+            p = _get_next(p);
+            auto next = H(p);
+            if (next == p)
+            {
+                return _get_last(p);
+            }
+            if (next->type == SEM)
+            {
+                WriteError("can't find integer, find " + backup->name);
+                return next;
+            }
+            return _get_last(p);
+        }
         return p;
     }
     list<SymInfo>::iterator H(list<SymInfo>::iterator p)
@@ -236,12 +329,13 @@ class Analysis
         {
             if (p->type != FUNCTION)
             {
+                return p;
                 WriteError("can't find function");
                 p = _get_last(p);
             }
             p = _get_next(p);
             next = I(p);
-            addVar(p->name,FUNCTION);
+            addVar(p->name, FUNCTION);
 
             auto nnext = _get_next(next);
             if (next->type != LBRAC)
@@ -262,14 +356,18 @@ class Analysis
                 nnext = _get_last(nnext);
             }
             lastProcess = nowProcess;
-            nowProcess =new Process(p->name);
+            nowProcess = new Process(p->name, lastProcess->getLevel() + 1);
             allProcess.push_back(nowProcess);
-            addVar(p->name,FUNCTION);
+            addVar(p->name, FUNCTION, 1);
             auto ret = S(_get_next(nnext));
             nowProcess = lastProcess;
             return ret;
         }
-        addVar(p->name,INTEGER);
+        if(next->type == SEM)
+        {
+            addVar(p->name, INTEGER);
+        }
+        
         return next;
     }
     list<SymInfo>::iterator I(list<SymInfo>::iterator p)
@@ -348,13 +446,13 @@ class Analysis
     list<SymInfo>::iterator Y(list<SymInfo>::iterator p)
     {
         auto next = I(p);
-        if (p != next)
+        if (p != next || p->type == LBRAC)
         {
             if (next->type == LBRAC)
             {
                 // function call
                 next = _get_next(next);
-                CheckVar(p->name,FUNCTION);
+                CheckVar(p->name, FUNCTION);
                 next = J(next);
                 if (next->type != RBRAC)
                 {
@@ -363,7 +461,7 @@ class Analysis
                 }
                 return _get_next(next);
             }
-            CheckVar(p->name,INTEGER);
+            CheckVar(p->name, INTEGER);
             return next;
         }
         if (next->type == CONSTANT)
@@ -388,7 +486,7 @@ class Analysis
                 WriteError("missing (");
             }
             auto next = I(nnext);
-            CheckVar(nnext->name,INTEGER);
+            CheckVar(nnext->name, INTEGER);
             nnext = _get_next(next);
             if (next->type != RBRAC)
             {
@@ -406,7 +504,7 @@ class Analysis
                 WriteError("missing (");
             }
             auto next = I(_get_next(p));
-            CheckVar(p->name,INTEGER);
+            CheckVar(p->name, INTEGER);
             if (next->type != RBRAC)
             {
                 next = _get_last(next);
@@ -417,14 +515,14 @@ class Analysis
         auto next = I(p);
         if (next != p)
         {
-            CheckVar(p->name,INTEGER);
+            CheckVar(p->name, INTEGER);
             if (next->type != ASSIGN)
             {
 
                 next = _get_last(next);
-                WriteError(string("can't ") + next->name);
+                //WriteError(string("can't ") + next->name);
             }
-            return J(_get_next(next));
+            return J(_get_next(next));  // function
         }
         if (p->type == IF)
         {
@@ -435,16 +533,16 @@ class Analysis
 
             if (next->type != THEN)
             {
-                next = _get_last(next);
-                WriteError("missing then");
+                //next = _get_next(next);
+                WriteError("missing then,find " + next->name);
             }
             next = Z(_get_next(next));
 
             if (next->type != ELSE)
             {
 
-                next = _get_last(next);
-                WriteError("can't find else");
+                //next = _get_last(next);
+                WriteError("can't find else,find "+next->name);
             }
             next = Z(_get_next(next));
             return next;
@@ -455,7 +553,7 @@ class Analysis
     list<SymInfo>::iterator _get_next(list<SymInfo>::iterator p)
     {
         p++;
-        while (p->type == NEXTLINE)
+        while (p->type == EOLN)
         {
             p++;
             line++;
@@ -465,7 +563,7 @@ class Analysis
     list<SymInfo>::iterator _get_last(list<SymInfo>::iterator p)
     {
         p--;
-        while (p->type == NEXTLINE)
+        while (p->type == EOLN)
         {
             p--;
             line--;
@@ -473,41 +571,22 @@ class Analysis
         return p;
     }
 
-    /*
-    <S
-    G == 3>→begin <A>；<B> end
-    <A>→<C><A*>              
-    <A*>→；<C><A*>|ε
-    <C>→integer <H>
-    <H>→<I>│ function <I>（<I>）；<E>
-    <I>→<L><I*>              
-    <I*>→<G><I*>|<G>
-   //c  <E>→begin <A>；<B> end
-    <B>→<Z><B*>               
-    <B*>→；<Z><B*>|<Z>
-    <Z>→read(<I>)│write(<I>)│<I>:=<J>│if<K>then<Z>else <Z>
-    <J>→<X><J*>              
-    <J*>→ -<X><J*>|ε
-    <X>→<Y><X*>               
-    <X*>→ε|*<Y><X*>
-    <Y>→<I>│<O>│<G>
-    <K>→<J><P><J>
-    <P>→<│<=│>│>=│=│<>      */
     void WriteFile(string msg)
     {
     }
+
     void WriteError(string msg)
     {
         error += "LINE:行号" + to_string(line) + "    " + msg + "\n";
     }
 
-    void CheckVar(string varName,int type)
+    void CheckVar(string varName, int type)
     {
-        if(!IsLetterAndNumber(varName[0]))
+        if (!IsLetterAndNumber(varName[0]))
         {
             return;
         }
-        if(nowProcess->HashVar(Variable(varName,nowProcess->GetName(),type)))
+        if (nowProcess->HashVar(Variable(varName, nowProcess->GetName(), type, 0)))
         {
             return;
         }
@@ -540,12 +619,13 @@ class Analysis
     }
     Process *nowProcess;
     Process *lastProcess;
-    list<Process*> allProcess;
+    list<Process *> allProcess;
     list<SymInfo> sourceList;
     string error;
     string sym;
     string source;
     int line = 1;
+    int varCount = 0;
     //list<SymInfo> lines;
 };
 
@@ -554,19 +634,26 @@ int main(int argc, char **argv)
     if (argc < 2)
     {
         cout << "use SyntacticAnalysis <dyd_file>" << endl;
+        exit(0);
     }
     ifstream source(argv[1]);
     if (!source.is_open())
     {
         ERROR_MSG("falied to open");
     }
-    ofstream out("sout_test.dyd");
+    ofstream out("out.dys");
     if (!out.is_open())
     {
         ERROR_MSG("failed to open out");
     }
 
-    ofstream error("serror_test.err");
+    ofstream tables("tables");
+    if (!tables.is_open())
+    {
+        ERROR_MSG("failed to open tables");
+    }
+
+    ofstream error("serror.err");
 
     if (!error.is_open())
     {
@@ -574,10 +661,17 @@ int main(int argc, char **argv)
     }
     string data{istreambuf_iterator<char>{source}, istreambuf_iterator<char>{}};
 
+    source.close();
+    out << data;
+    out.close();
     Analysis anlysisor = Analysis(data);
     anlysisor.StartAnalysis();
 
     anlysisor.dumpError(error);
+    anlysisor.dumpVar(tables);
+
+    tables.close();
+    error.close();
 
     return 0;
 }
